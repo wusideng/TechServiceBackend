@@ -1,0 +1,77 @@
+首先需要导出certify the web创建的证书，证书路径为C:\ProgramData\certify\assets\visualstreet.cn
+90天自动更新，更新后需要重新导出文件，并重启nginx
+
+以下命令可以在本地运行，不需要在服务器运行 先下载.pfx文件，再上传.pem文件到服务器就行
+# 导出证书为 PEM 格式
+#openssl pkcs12 -in 20250621_f41c8a8a.pfx -clcerts -nokeys -legacy -out certificate.pem
+
+# 导出私钥为 PEM 格式
+openssl pkcs12 -in 20250621_f41c8a8a.pfx -nocerts -nodes -legacy -out private.key
+
+# 从PFX提取完整证书链（包含所有中间证书）, 注意要使用fullchain.pem而不是certificate.pem
+openssl pkcs12 -in 20250621_f41c8a8a.pfx -nokeys -out fullchain.pem -legacy
+
+
+该用certbot来生成证书，对于nginx更方便
+1.pip install -i https://mirrors.aliyun.com/pypi/simple/ certbot
+2. cd C:\nginx\html
+    mkdir .well-known
+    cd .well-known
+    mkdir acme-challenge
+    cd acme-challenge
+3. 手动获取证书
+certbot certonly --manual -d visualstreet.cn
+4. 根据提示生成文件
+cd C:\nginx\html\.well-known\acme-challenge
+echo|set /p="BloC8JaYFaWFKELqs9R0z7QFw7xiffyP9FpvH9jrh0g.fPwQoWEK5xLba9bjJM36e4R8yP-fQgLWz_2HKw3hOyo" >BloC8JaYFaWFKELqs9R0z7QFw7xiffyP9FpvH9jrh0g
+5. 接下来配置nginx，重启nginx：
+在nginx.conf http中添加：
+server {
+		listen 80;
+		server_name visualstreet.cn;
+        # 添加这个 location 块（用于证书续期）
+        location /.well-known/acme-challenge/ {
+            root C:/nginx/html;
+            try_files $uri =404;
+        }
+		location / {
+			return 301 https://$host$request_uri;
+    }
+在server 443配置中添加：
+ssl_certificate      C:/Certbot/live/visualstreet.cn/fullchain.pem;
+ssl_certificate_key  C:/Certbot/live/visualstreet.cn/privkey.pem;
+5. 自动续期：
+如果不想删除当前证书，可以强制使用 Webroot 续期：
+
+certbot renew --cert-name visualstreet.cn --webroot -w C:\nginx\html
+
+
+现在可以安全设置自动续期
+创建最终的续期脚本 C:\certbot_renew.bat：
+@echo off
+echo [%date% %time%] Starting certificate renewal check...
+cd /d C:\
+C:\Python\python.exe -m certbot renew --webroot -w C:\nginx\html --quiet
+if %ERRORLEVEL% EQU 0 (
+    echo [%date% %time%] Certificate renewal check completed successfully
+    C:\nginx\nginx.exe -s reload
+    echo [%date% %time%] Nginx reloaded
+) else (
+    echo [%date% %time%] Certificate renewal check failed
+)
+echo [%date% %time%] Renewal check finished
+测试续期（模拟到期）
+# 强制续期测试
+certbot renew --cert-name visualstreet.cn --webroot -w C:\nginx\html --force-renewal
+设置任务计划程序  Set up a task scheduler
+现在可以安全地设置任务计划，每天自动检查续期：  It is now safe to set up task schedules that automatically check for renewals on a daily basis:
+
+任务名称： Certbot Auto Renew
+Mission Name: Certbot Auto Renew
+运行时间： 每天 02:00 和 14:00
+Operating hours: 02:00 and 14:00 daily
+执行程序： C:\certbot_renew.bat
+Executor: C:\certbot_renew.bat
+您的 SSL 证书自动续期已经配置完成！  Your SSL certificate auto-renewal is configured!
+暂时不搞这个脚本了，以后在设置windows每日计划吧
+下次到期时间为2025-09-11

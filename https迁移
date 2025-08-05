@@ -1,0 +1,132 @@
+1. 申请好https证书
+2. 配置好nginx,包括前端和后端, 
+后端dev环境 apidev->8001
+   prod: api->8000
+   clean: apiclean->8002
+3. 停掉IIS
+4. 启动nginx
+5. 修改环境变量:前端.env 文件(客户端,技师端,服务端)配置好staticurl和apiurl, 都配置成https,后端config文件配置成https的,然后部署
+6. 修改数据库,将数据库中的http的图片链接都改成https
+
+UPDATE dbo.t_apply_status
+SET photo_work = REPLACE(photo_work, 'http:', 'https:'),
+    photo_life_1 = REPLACE(photo_life_1, 'http:', 'https:'),
+    photo_life_2 = REPLACE(photo_life_2, 'http:', 'https:'),
+    photo_life_3 = REPLACE(photo_life_3, 'http:', 'https:')
+WHERE 
+    photo_work LIKE 'http:%' OR
+    photo_life_1 LIKE 'http:%' OR
+    photo_life_2 LIKE 'http:%' OR
+    photo_life_3 LIKE 'http:%';
+
+
+UPDATE dbo.t_client_user
+SET user_photo = REPLACE(user_photo, 'http:', 'https:'),
+    headimgurl = REPLACE(headimgurl, 'http:', 'https:')
+WHERE 
+    user_photo LIKE 'http:%' OR
+    headimgurl LIKE 'http:%';
+
+
+UPDATE dbo.t_feedback
+SET img_url1 = REPLACE(img_url1, 'http:', 'https:'),
+    img_url2 = REPLACE(img_url2, 'http:', 'https:'),
+    img_url3 = REPLACE(img_url3, 'http:', 'https:')
+WHERE 
+    img_url1 LIKE 'http:%' OR
+    img_url2 LIKE 'http:%' OR
+    img_url3 LIKE 'http:%';
+
+
+UPDATE dbo.t_order_product
+SET photo_intro = REPLACE(photo_intro, 'http:', 'https:')
+WHERE 
+    photo_intro LIKE 'http:%';
+
+
+UPDATE dbo.t_order_status
+SET order_status_photo = REPLACE(order_status_photo, 'http:', 'https:')
+WHERE order_status_photo LIKE 'http:%';
+
+
+UPDATE dbo.t_product
+SET photo_intro = REPLACE(photo_intro, 'http:', 'https:'),
+    photo_detail1 = REPLACE(photo_detail1, 'http:', 'https:'),
+    photo_detail2 = REPLACE(photo_detail2, 'http:', 'https:'),
+    photo_detail3 = REPLACE(photo_detail3, 'http:', 'https:')
+WHERE 
+    photo_intro LIKE 'http:%' OR
+    photo_detail1 LIKE 'http:%' OR
+    photo_detail2 LIKE 'http:%' OR
+    photo_detail3 LIKE 'http:%';
+
+
+UPDATE dbo.t_sys_user
+SET user_photo = REPLACE(user_photo, 'http:', 'https:')
+WHERE 
+    user_photo LIKE 'http:%';
+
+
+
+UPDATE dbo.t_tech_user
+SET photo_work = REPLACE(photo_work, 'http:', 'https:'),
+    photo_life_1 = REPLACE(photo_life_1, 'http:', 'https:'),
+    photo_life_2 = REPLACE(photo_life_2, 'http:', 'https:'),
+    photo_life_3 = REPLACE(photo_life_3, 'http:', 'https:'),
+    headimgurl = REPLACE(headimgurl, 'http:', 'https:')
+WHERE 
+    photo_work LIKE 'http:%' OR
+    photo_life_1 LIKE 'http:%' OR
+    photo_life_2 LIKE 'http:%' OR
+    photo_life_3 LIKE 'http:%' OR
+    headimgurl LIKE 'http:%';
+
+7. 前端可以使用高德地图定位了
+8. 需要调用请求把公众号的链接都改成https,包括我要下单,我要加入等
+
+
+
+
+其他注意事项:
+1. 修改数据库 加入了user_address表
+2. order 表的修改 service_address_door字段废弃,把service_address_door 改成非必填,把已有value移动到service_detail_address
+把已有的service_detail_address移动到service_region上去
+3. t_order_comment表order_id 改为int字段,不然会造成订单列表状态不对 
+ALTER TABLE t_order_comment
+ALTER COLUMN order_id INT;
+4. 修改所有id不是int的情况:
+5. 修改命名混乱情况:
+    (1)t_apply_status:
+    tech_id,改为tech_openid, 先不改 因为已经在使用
+    (2)t_bill: 
+    ******
+    tech_user_id 改为tech_openid dev数据库已经修改,后端代码已经修改
+    (3)t_client_user_position:
+    ******
+    client_user_id改为client_openid, dev数据库已经修改,后端代码已经修改, 客户端代码已修改
+    (4) t_feedback
+    ******
+    client_id改为client_openid,dev数据库已经修改,后端代码已经修改,客户端代码已修改
+    created_at,updated_at 重命名为create_time,update_time,之后所有新加数据库，统一把创建/更新时间命名create_time,update_time
+    客户端代码已修改，后端代码已修改
+    (5) t_order
+     tech_user_id, client_user_id, 先不改,已经在用
+    (6) t_order_comment
+    ******
+     client_id, 改为 client_openid, dev数据库已经修改 后端代码已经修改,客户端代码已修改
+     tech_id, 应改为tech_openid,先不改,技师端在用
+     client_score_to_tech/tech_score_to_client现在是字符串，改成float
+     -- 修改 client_score_to_tech 列的数据类型并允许 NULL
+    ALTER TABLE [dbo].[t_order_comment]
+    ALTER COLUMN [client_score_to_tech] float NULL;
+
+    -- 修改 tech_score_to_client 列的数据类型并允许 NULL
+    ALTER TABLE [dbo].[t_order_comment]
+    ALTER COLUMN [tech_score_to_client] float NULL;
+    (7) t_refund
+     created_at,updated_at 重命名create_time,update_time
+     后端代码已修改，只改t_refund model即可
+    (8) tech_user_position tech_user_id改为tech_openid 先不改,技师端再用
+    (9) tech_user_worktime tech_user_id改为tech_openid 先不改,技师端再用
+
+

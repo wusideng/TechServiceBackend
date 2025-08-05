@@ -1,0 +1,6 @@
+[
+  { "coupon_value": 10, "coupon_condition": 0, "amount": 4 },
+  { "coupon_value": 25, "coupon_condition": 298, "amount": 2 },
+  { "coupon_value": 30, "coupon_condition": 350, "amount": 1 },
+  { "coupon_value": 38, "coupon_condition": 350, "amount": 1 }
+]

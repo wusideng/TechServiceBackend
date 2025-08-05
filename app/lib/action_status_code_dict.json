@@ -1,0 +1,33 @@
+{
+  "client": {
+    "wait_for_payment": { "code": "order_011", "text": "待支付" },
+    "paid": { "code": "order_012", "text": "已支付" },
+    "payment_failed": { "code": "order_013", "text": "支付失败" },
+    "refund_quest_send_to_3rd_party": {
+      "code": "order_014",
+      "text": "已发送退款请求"
+    },
+    "wait_for_refund": { "code": "order_015", "text": "退款中" },
+    "refunded": { "code": "order_016", "text": "已退款" },
+    "refund_abnormal": { "code": "order_017", "text": "退款异常" },
+    "refund_closed": { "code": "order_018", "text": "退款关闭" },
+    "refund_fail": { "code": "order_021", "text": "退款请求失败" },
+    "refund_auditing": { "code": "order_019", "text": "系统审核中" },
+    "service_end": { "code": "order_020", "text": "顾客结束服务" },
+    "cancel_before_pay": { "code": "order_100", "text": "订单已取消" },
+    "payment_timeout": { "code": "order_101", "text": "支付超时" },
+    "previous_pay_closed": {
+      "code": "order_102",
+      "text": "关闭前一次失败的支付"
+    }
+  },
+  "tech": {
+    "wait_for_take_order": { "code": "order_021", "text": "待接单" },
+    "confirm_take_order": { "code": "order_022", "text": "确认接单" },
+    "has_on_the_way": { "code": "order_023", "text": "已经出发" },
+    "has_arrived": { "code": "order_024", "text": "已经到达" },
+    "start_service": { "code": "order_025", "text": "开始服务" },
+    "service_end": { "code": "order_027", "text": "技师结束服务" },
+    "has_left": { "code": "order_028", "text": "确认离开" }
+  }
+}

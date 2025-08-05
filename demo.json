@@ -1,0 +1,21 @@
+{
+  "order": {
+    "service_time": "2024-01-01 12:30:00",
+    "service_address": "浙江省杭州市富阳区大源镇旭沣荣和华庭(南门)",
+    "service_city": "杭州市",
+    "service_detail_address": "无",
+    "travel_distance": 96.29746171213388,
+    "travel_cost": "497",
+    "payment_status": "已支付",
+    "tech_user_id": "mackc",
+    "client_user_id": "oK9p06eiEk0jWNvowVjb5lGlkocM",
+    "remark": "测试订单"
+  },
+  "product": {
+    "product_id": 7,
+    "order_id": 0,
+    "product_name": "调理之源",
+    "product_count": 1,
+    "server_time": "2024-01-01 12:30:00"
+  }
+}
