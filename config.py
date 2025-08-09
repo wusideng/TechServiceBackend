@@ -1,10 +1,16 @@
 worker_num = 1
 
+# alibaba
 db_user = "sa"
-db_password = "u)Gw79/u:jRuCxnw"
+db_password = "H3E7?j.4F<^j_qP%37FV"
 db_host = "120.26.38.176:49471"
-
 port = 49471
+
+# tencent
+# db_user = "sa"
+# db_password = "cldera.com2023"
+# db_host = "101.42.110.185:1433"
+# port = 1433
 
 product_pictures = "./uploads"
 order_pictures = "./uploads"
@@ -35,15 +41,15 @@ cdn_info = {
 # 订单通知管理员的手机号
 adminList = [18010260892, 13683575261, 18996531158]
 
-static_url = "https://cdn.visualstreet.cn"
+static_url = "https://sdy.visualstreet.cn"
 # 用于接收微信通知，如扫描二维码等
 WECHAT_TOKEN = "ROE2V6adoxvseC1KIYBoIaVa75b"
 WECHAT_EncodingAESKey = "7UiErBVeNhiRetfyDcADVLzvANvF3Xq1Nq6ZWulLPVy"
 
 # local
 is_dev = True
-db_name = "home_massage_prod"
-# db_name = "home_massage_dev"
+# db_name = "home_massage_prod"
+db_name = "home_massage_dev"
 server_port = 8000
 product_base = "http://127.0.0.1:8000"
 enable_pay_test = True
