@@ -2,7 +2,7 @@ worker_num = 1
 
 # alibaba
 db_user = "sa"
-db_password = "H3E7?j.4F<^j_qP%37FV"
+db_password = "H3Rxu30!u2t%8XDfdPu"
 db_host = "120.26.38.176:49471"
 port = 49471
 
@@ -39,7 +39,7 @@ cdn_info = {
     "bucket": "shangdayuan",
 }
 # 订单通知管理员的手机号
-adminList = [18010260892, 13683575261, 18996531158]
+adminList = [18010260892, 18996531158]
 
 static_url = "https://sdy.visualstreet.cn"
 # 用于接收微信通知，如扫描二维码等
