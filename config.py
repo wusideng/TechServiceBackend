@@ -34,10 +34,18 @@ pay_test_openids = [
 # 订单支付超时时间
 order_pay_timeout = 1800
 cdn_info = {
-    "access_key": "B0N2T8EneCYnW6BswNSJmYkWUXJVPtobHPnxSuFL",
-    "secret_key": "r9DGBnaxxLVpik8YgIVvuNgIm_5is9Dq5taL6egF",
-    "bucket": "shangdayuan",
+    # # 尚达元CDN
+    # "access_key": "B0N2T8EneCYnW6BswNSJmYkWUXJVPtobHPnxSuFL",
+    # "secret_key": "r9DGBnaxxLVpik8YgIVvuNgIm_5is9Dq5taL6egF",
+    # "bucket": "shangdayuan",
+    # 配置您的七牛云凭证
+    "access_key": '7NaZvZKm2wMZ80DbxrbXhq6GyKOir7qhznodO9_X',
+    "secret_key": 'UVRTUZHFbjvplwTQBbnIjphysOkjwNH9OYg9gTHk',
+    "bucket": 'visualstreet'
 }
+
+
+
 # 订单通知管理员的手机号
 adminList = [18010260892, 18996531158]
 
@@ -48,8 +56,8 @@ WECHAT_EncodingAESKey = "7UiErBVeNhiRetfyDcADVLzvANvF3Xq1Nq6ZWulLPVy"
 
 # local
 is_dev = True
-# db_name = "home_massage_prod"
-db_name = "home_massage_dev"
+db_name = "home_massage_prod"
+# db_name = "home_massage_dev"
 server_port = 8000
 product_base = "http://127.0.0.1:8000"
 enable_pay_test = True
