@@ -1,11 +1,14 @@
 #  账单信息
 from datetime import datetime
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlmodel import Session, select
 from sqlalchemy import and_, desc, exists, or_
 from sqlalchemy.orm import aliased
-from sqlmodel import Session, select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.sql import text
+
 import traceback
 
 from app.core.database import engine, get_session
@@ -164,10 +167,32 @@ async def create_bill(bill: T_Bill):
         # 捕获其他异常
         print(traceback.format_exc())
         raise HTTPException(status_code=500, detail="An unexpected error occurred.")
+    
+
+@router.get("/city/statistics")
+async def statistics(
+    city: Optional[str] = None,
+    session: Session = Depends(get_session)
+    ):
+
+    totalsum = session.exec(text("SELECT SUM(amount) FROM t_bill WHERE work_city = '杭州市'")).scalar()
+    totalpaid = session.exec(text("SELECT  SUM(amount) FROM t_bill WHERE work_city = '杭州市' AND payment_status = 'paid'")).scalar()
+    currentotalsum = session.exec(text("SELECT SUM(amount) FROM t_bill WHERE work_city = '杭州市'  AND time_stamp >= DATEADD(WEEK, DATEDIFF(WEEK, 0, GETDATE()), 0)")).scalar()
+    bill_statement = select(T_Bill).order_by(T_Bill.time_stamp.desc())
+    bill_result = session.exec(bill_statement).all()
+    # return bill_result
+
+    return {
+        "totalsum":totalsum,
+        "totalpaid":totalpaid,
+        "currentotalsum":currentotalsum,
+        "bill_result":bill_result
+    }
+
 
 
 @router.post("/modify")
-async def update_order(bill_id: int, newBill: T_Bill):
+async def update_bill(bill_id: int, newBill: T_Bill):
     with Session(engine) as session:
         statement = select(T_Bill).where(T_Bill.bill_id == bill_id)
         result = session.exec(statement)
@@ -187,7 +212,7 @@ async def update_order(bill_id: int, newBill: T_Bill):
 
 
 @router.post("/del/{bill_id}")
-async def delete_order(bill_id: int):
+async def delete_bill(bill_id: int):
     with Session(engine) as session:
         statement = select(T_Bill).where(T_Bill.bill_id == bill_id)
         results = session.exec(statement)
