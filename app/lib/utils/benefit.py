@@ -6,10 +6,12 @@ from sqlmodel import Session, select
 from app.model.t_order import T_Order
 from app.core.config import action_status_code_dict
 
-maintainence_fee = 18
+# 渠道费（平台维护费）
+maintainence_fee = 10
+# 提现手续费
 withdraw_fee = 5
+# 技师提成百分比（默认分成比例，当技师分成比例未设置则使用 70%）
 default_ratio = 70
-
 
 def calculate_benefit_for_order(order: T_Order, session: Session):
     order_id = order.order_id
