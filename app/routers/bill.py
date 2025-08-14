@@ -16,6 +16,8 @@ from app.model.t_bill import T_Bill
 from app.model.t_order import T_Order
 from app.model.t_order_product import T_Order_Product
 
+from logger import logger
+
 router = APIRouter()
 
 router = APIRouter(
@@ -169,24 +171,55 @@ async def create_bill(bill: T_Bill):
         raise HTTPException(status_code=500, detail="An unexpected error occurred.")
     
 
+# 20250814 进行功能开发，增加账务修正。
+# 工户余额：2327，数据库总额：14892，技师发放金额：9807
+# 增加修正值：2758
+
+# 交税百分比
+tax_rate = 0.06
+# 提现手续费
+withdraw_fee = 5
+# 20250814钱有账务信息没有保存到bill 表单中。
+balance_adjustment_0814 = 0
+# balance_adjustment_0814 = 2758
+
 @router.get("/city/statistics")
 async def statistics(
     city: Optional[str] = None,
     session: Session = Depends(get_session)
     ):
-
-    totalsum = session.exec(text("SELECT SUM(amount) FROM t_bill WHERE work_city = '杭州市'")).scalar()
-    totalpaid = session.exec(text("SELECT  SUM(amount) FROM t_bill WHERE work_city = '杭州市' AND payment_status = 'paid'")).scalar()
+    # 查询总金额
+    logger.info('------------查询平台账户信息-----------------')
+    totalsum = float(session.exec(text("SELECT SUM(amount) FROM t_bill WHERE work_city = '杭州市'")).scalar() or 0)
+    logger.info(f"总金额, {totalsum}")
+    # 查询已支付技师（已支付 = 技师收益+手续费）
+        # 手续费
+    totalcount = session.exec(text("SELECT count(*) FROM t_bill WHERE work_city = '杭州市' AND payment_status = 'completed'")).scalar()
+    total_withdraw_fee = totalcount * withdraw_fee
+        # 技师收益
+    tech_completed = float(session.exec(text("SELECT SUM(tech_income) FROM t_bill WHERE work_city = '杭州市' AND payment_status = 'completed'")).scalar() or 0)
+    totalpaid = tech_completed + total_withdraw_fee
+    logger.info(f"已发放技师收益：{totalpaid}")
+    # 已支付股东
+    totolincome = totalsum - totalsum * 0.06 - totalpaid + balance_adjustment_0814
+    logger.info(totolincome)
+    # 银行卡账户余额（总金额-已支付技师-已支付股东）
+    card_balance = totalsum - totalpaid - totolincome
+    logger.info(card_balance)
+    
+    # 本周收益,按照城市查看
     currentotalsum = session.exec(text("SELECT SUM(amount) FROM t_bill WHERE work_city = '杭州市'  AND time_stamp >= DATEADD(WEEK, DATEDIFF(WEEK, 0, GETDATE()), 0)")).scalar()
+    
     bill_statement = select(T_Bill).order_by(T_Bill.time_stamp.desc())
     bill_result = session.exec(bill_statement).all()
     # return bill_result
-
     return {
-        "totalsum":totalsum,
-        "totalpaid":totalpaid,
-        "currentotalsum":currentotalsum,
-        "bill_result":bill_result
+        "totalsum": totalsum,   # 总金额
+        "totolincome": round(totolincome,2), # 已支付股东
+        "totalpaid": round(totalpaid), # 已支付技师
+        "card_balance": round(card_balance), # 银行卡账户余额
+        "currentotalsum": currentotalsum,  # 本周收益
+        "bill_result": bill_result
     }
 
 
