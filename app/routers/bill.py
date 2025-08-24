@@ -208,8 +208,7 @@ async def statistics(
     logger.info(card_balance)
     
     # 本周收益,按照城市查看
-    currentotalsum = session.exec(text("SELECT SUM(amount) FROM t_bill WHERE work_city = '杭州市'  AND time_stamp >= DATEADD(WEEK, DATEDIFF(WEEK, 0, GETDATE()), 0)")).scalar()
-    
+    currentotal = session.exec(text("SELECT SUM(amount) as 'sumamount' , SUM(tech_income) as 'sumtechincome',DATEADD(DAY, -((DATEPART(WEEKDAY, GETDATE()) + 1) % 7), CAST(GETDATE() AS DATE)) as 'strattime', GETDATE() as 'endtime' FROM t_bill WHERE work_city = '杭州市'  AND time_stamp >= DATEADD(DAY, -((DATEPART(WEEKDAY, GETDATE()) + 1) % 7), CAST(GETDATE() AS DATE)) -- 上周六 AND time_stamp < GETDATE(); -- 当前时间")).first()
     bill_statement = select(T_Bill).order_by(T_Bill.time_stamp.desc())
     bill_result = session.exec(bill_statement).all()
     # return bill_result
@@ -218,7 +217,10 @@ async def statistics(
         "totolincome": round(totolincome,2), # 已支付股东
         "totalpaid": round(totalpaid), # 已支付技师
         "card_balance": round(card_balance), # 银行卡账户余额
-        "currentotalsum": currentotalsum,  # 本周收益
+        "currenttotalsum": currentotal.sumamount,  # 本周收益
+        "currenttotalstarttime": currentotal.strattime,  # 本期开始时间
+        "currenttotalendtime": currentotal.endtime,  # 本期结束时间
+        "currentsumtechincome": currentotal.sumtechincome,  # 本期技师收益
         "bill_result": bill_result
     }
 

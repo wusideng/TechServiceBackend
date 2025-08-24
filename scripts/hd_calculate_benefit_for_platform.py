@@ -29,6 +29,10 @@ from app.model.t_user_follows import T_User_Follows
 from app.routers.tech_user import T_Tech_User_Worktime, get_main_query
 from sqlalchemy import func, cast, Date
 
+# todo 渠道费8月16号开始改为只有首单扣18元，加钟不扣
+# todo 技师评论客人，危险等级
+# todo 客户端评论只显示日期，不显示具体时间
+# todo bug 顾客无法手动输入评论
 calculate_today = False
 # 交税百分比
 tax_rate = 0.06
@@ -41,9 +45,13 @@ tech_benefit_rate_add = 0.7
 maintenance_fee = 10
 maintenance_fee_add = 0
 
-
 techs = {}
+# 实际交通费
 actual_travel_fees = {}
+# actual_travel_fees = {236: 30, 257: 80}
+# 空单费
+empty_order_fee = {}
+# empty_order_fee = {253: 30}
 
 
 def set_actual_travel_fee(order_id: str, actual_travel_fee: float):
@@ -51,7 +59,7 @@ def set_actual_travel_fee(order_id: str, actual_travel_fee: float):
 
 
 # [{"order_id":1, "actual_travel_fee": 100}]
-def set_actual_travel_fees(actual_travel_fees: List[dict]):
+def set_actual_travel_fees(actual_travel_fees: List[dict]) -> None:
     if actual_travel_fees is None:
         return
     for actual_travel_fee in actual_travel_fees:
@@ -60,7 +68,7 @@ def set_actual_travel_fees(actual_travel_fees: List[dict]):
         )
 
 
-def main(order_ids: List[int], actual_travel_fees: List[dict] = None):
+def main(start_date, end_date, actual_travel_fees: List[dict] = None):
     set_actual_travel_fees(actual_travel_fees)
 
     with Session(engine) as session:
@@ -70,13 +78,17 @@ def main(order_ids: List[int], actual_travel_fees: List[dict] = None):
             .where(
                 T_Order.payment_status_code
                 == action_status_code_dict["client"]["paid"]["code"],
-                T_Order.order_id.in_(order_ids),
+                T_Order.service_time
+                >= datetime.strptime(start_date, "%Y-%m-%d %H:%M:%S"),
+                T_Order.service_time
+                <= datetime.strptime(end_date, "%Y-%m-%d %H:%M:%S"),
             )
         )
         orders = session.exec(statement).all()
         statement_techs = (select(T_Tech_User))
         techs = session.exec(statement_techs).all()
         sum_for_all_techs = {}
+        all_benefits = []
         for order in orders:
             tech_name = order.tech.user_nickname
             benefit_info = calculate_benefit(order, session)
@@ -84,7 +96,11 @@ def main(order_ids: List[int], actual_travel_fees: List[dict] = None):
                 sum_for_all_techs[tech_name] = [benefit_info]
             else:
                 sum_for_all_techs[tech_name].append(benefit_info)
-            print(f"-------------------------------")
+            all_benefits.append(benefit_info)
+            if(not order.parent_order_id):
+                print(f"------------{order.service_city}-------------------")
+            else:
+                print(f"------------{order.service_city}加钟{order.parent_order_id}-----------------")
             # print(f"{order.tech.user_nickname}第{index+1}单")
             print(f"订单编号：{benefit_info['order_id']}")
             print(
@@ -95,7 +111,7 @@ def main(order_ids: List[int], actual_travel_fees: List[dict] = None):
                 actual_tech = [tech for tech in techs if tech.openid == order.actual_tech_openid]
                 print(f"替单技师：{ actual_tech[0].user_nickname}")
             print(f"订单总价：{benefit_info['order_cost']}")
-            # print(f"平台预估车费：{benefit_info['travel_fee']}")
+            print(f"平台预估车费：{benefit_info['travel_fee']}")
             print(f"实际车费：{benefit_info['actual_travel_fee']}")
             print(f"渠道费：{benefit_info['maintenance_fee']}")
             print(f"手续费：{benefit_info['withdraw_fee']}")
@@ -109,29 +125,15 @@ def main(order_ids: List[int], actual_travel_fees: List[dict] = None):
             print(
                 f"平台收益：{benefit_info['order_cost']}-{benefit_info['tech_benefit']}-{benefit_info['total_tax_cost']}={benefit_info['platform_benefit']}"
             )
-            
         print("\n")
-
-        for tech_name in sum_for_all_techs:
-            print(tech_name)
-            benefit_infos = sum_for_all_techs[tech_name]
-            tech_sum_benefit = round(
-                sum([benefit_info["tech_benefit"] for benefit_info in benefit_infos]),
-                2,
-            )
-            tax_sum = round(
-                sum([benefit_info["total_tax_cost"] for benefit_info in benefit_infos]),
-                2,
-            )
-            platform_sum_benefit = round(
-                sum(
-                    [benefit_info["platform_benefit"] for benefit_info in benefit_infos]
-                ),
-                2,
-            )
-            print(f"技师{tech_name}总收益:{tech_sum_benefit}")
-            # print(f"技师订单总上缴税收:{tax_sum}")
-            # print(f"技师订单平台总收益:{platform_sum_benefit}")
+        platform_benefit = round(
+            sum([benefit_info["platform_benefit"] for benefit_info in all_benefits]),
+            2,
+        )
+        empty_order_fee_sum = sum(empty_order_fee.values())
+        platform_benefit = platform_benefit + empty_order_fee_sum
+        print(f"空单费：{empty_order_fee_sum}")
+        print(f"{start_date}-{end_date} 平台收益为{platform_benefit}")
 
 
 def get_benefit_info(
@@ -190,8 +192,9 @@ def calculate_benefit(order: T_Order, session: Session):
     order_cost = float(order.order_cost)
     travel_fee = float(order.travel_cost * 2)
     # tax_fee = order_cost * tax_rate
-    withdraw_fee_for_current_order = 0 if tech_name in techs else withdraw_fee
-    techs[tech_name] = True
+    tech_name_with_date = tech_name + order.service_time.strftime("%Y—%m-%d")
+    withdraw_fee_for_current_order = 0 if tech_name_with_date in techs else withdraw_fee
+    techs[tech_name_with_date] = True
     actual_travel_fee = (
         actual_travel_fees[order_id] if order_id in actual_travel_fees else travel_fee
     )
@@ -203,6 +206,7 @@ def calculate_benefit(order: T_Order, session: Session):
     else:
         tech_benefit_current_rate = tech_benefit_rate
         maintenance_current_fee = maintenance_fee
+ 
     benefit_info = get_benefit_info(
         order_cost,
         travel_fee,
@@ -219,11 +223,6 @@ def calculate_benefit(order: T_Order, session: Session):
 
 
 if __name__ == "__main__":
-    print("计算开始")
-    order_ids = [358] 
-
-    main(order_ids)
-
-
-# 杭州 351,353
-# 重庆 331
+    start_date = "2025-08-01 00:00:00"
+    end_date = "2025-08-15 23:59:00"
+    main(start_date, end_date)
