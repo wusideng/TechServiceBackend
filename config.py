@@ -38,7 +38,7 @@ cdn_info = {
     # "access_key": "B0N2T8EneCYnW6BswNSJmYkWUXJVPtobHPnxSuFL",
     # "secret_key": "r9DGBnaxxLVpik8YgIVvuNgIm_5is9Dq5taL6egF",
     # "bucket": "shangdayuan",
-    # 配置您的七牛云凭证
+    # # 姜程退出后新申请的CDN
     "access_key": '7NaZvZKm2wMZ80DbxrbXhq6GyKOir7qhznodO9_X',
     "secret_key": 'UVRTUZHFbjvplwTQBbnIjphysOkjwNH9OYg9gTHk',
     "bucket": 'visualstreet'
