@@ -9,6 +9,7 @@ class T_Bill(SQLModel, table=True):
     amount: Decimal
     tech_income: Decimal
     travel_cost: Decimal
+    tax: Decimal
     openid: str
     user_nickname: str
     ratio: Optional[int]
