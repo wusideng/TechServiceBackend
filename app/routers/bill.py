@@ -251,7 +251,7 @@ async def statisticsnew(
 
     logger.info('------------查看账单-----------------')
     # query = select(T_Bill)
-    query = select(T_Bill,T_Order.actual_tech_openid,T_Tech_User.user_nickname.label('actual_user_nickname')).outerjoin(T_Order, T_Bill.order_id == T_Order.order_id).outerjoin(T_Tech_User, T_Order.actual_tech_openid == T_Tech_User.openid)
+    query = select(T_Bill,T_Order,T_Tech_User.user_nickname.label('actual_user_nickname')).outerjoin(T_Order, T_Bill.order_id == T_Order.order_id).outerjoin(T_Tech_User, T_Order.actual_tech_openid == T_Tech_User.openid)
 
     if city:
         query = query.where(T_Bill.work_city == city)
@@ -277,9 +277,10 @@ async def statisticsnew(
             "withdrawed": bill.withdrawed,  
             "payment_status": bill.payment_status or "",  
             "time_stamp": bill.time_stamp.isoformat(),  
+            "service_time": T_Order.service_time
             # 添加其他需要的属性
         }
-        for bill, actual_tech_openid, actual_user_nickname in bill_results
+        for bill, T_Order, actual_user_nickname in bill_results
     ]
     return {
         "totalsum": total_result.total_amount,   # 总金额
