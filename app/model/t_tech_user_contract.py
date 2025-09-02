@@ -23,6 +23,7 @@ class T_Tech_USER_Contract(SQLModel, table=True):
     status: str = Field(default="pending", max_length=50)
     status_desc: str = Field(default="审核信息", max_length=255)
     created_time: datetime = Field(default_factory=datetime.now)
+    update_time: datetime = Field(default_factory=datetime.now)
 
     # IF NOT EXISTS (SELECT * FROM sys.tables WHERE name='t_tech_user_contracts')
     # BEGIN

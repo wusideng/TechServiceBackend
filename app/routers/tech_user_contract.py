@@ -336,6 +336,7 @@ async def sign_portrait_contract(
     contract_pdf = await generate_portrait_contract_pdf(
         template_path, tech_name, tech_sex, phone, photo_front, photo_back, signature
     )
+    logger.info("Contract PDF generated successfully")
     # 上传合约文件到服务器CDN目录
     # contract_cdn_path = await upload_contract_to_server_io(contract_pdf, tech_openid, tech_name, "肖像权许可使用协议")
     # print("上传成功服务器CDN:", contract_cdn_path)
@@ -343,7 +344,7 @@ async def sign_portrait_contract(
     contract_cdn_path = await upload_contract_to_cdn_io(
         contract_pdf, tech_openid, tech_name, "肖像权许可使用协议"
     )
-    print("上传成功到七牛云CDN:", contract_cdn_path)
+    print("上传肖像权许可使用协议成功到七牛云CDN:", tech_name, tech_openid, contract_cdn_path)
     # 创建并保存合约记录到数据库
     with Session(engine) as db:
         # 检查是否存在相同的合约
@@ -431,12 +432,13 @@ async def review_contract(
         # print("上传成功服务器CDN:", contract_cdn_path)
         # 上传合约文件到CDN目录
         contract_cdn_path = await upload_contract_to_cdn_io(
-            contract_pdf, tech_openid, tech_name, "肖像权许可使用协议"
+            contract_pdf, tech_openid, tech_name, contract_type
         )
-        print("上传成功到七牛云CDN:", contract_cdn_path)
+        logger.info("审核证书", tech_openid, tech_name, contract_type)
         contract.contract_file = contract_cdn_path
         contract.status = status
         contract.status_desc = status_desc
+        contract.update_time = datetime.now()
         db.add(contract)
         db.commit()
         db.refresh(contract)
@@ -451,6 +453,7 @@ async def read_contract():
 
 
 # 只查看已申请，未签约的技师
+# 申请上线审批通过的的技师，才有工作电话work_phone
 @router.get("/TechStatus")
 async def read_contract():
     with Session(engine) as db:
@@ -462,12 +465,12 @@ async def read_contract():
                 isouter=True,
             )
             .where(
-                not_(
-                    T_Tech_User.openid.like("%Mock%")
-                    | T_Tech_User.openid.like("%mock%")
-                ),
-                # T_Tech_User.work_phone != "",
-                # T_Tech_User.work_phone != "string",
+                # not_(
+                #     T_Tech_User.openid.like("%Mock%")
+                #     | T_Tech_User.openid.like("%mock%")
+                # ),
+                T_Tech_User.work_phone != "",
+                T_Tech_User.work_phone != "string",
             )
             .order_by(T_Tech_USER_Contract.contracts_id.desc())
         )

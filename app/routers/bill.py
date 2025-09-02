@@ -190,7 +190,7 @@ async def statisticsnew(
     city: Optional[str] = None,
     session: Session = Depends(get_session)
     ):
-    logger.info('------------查询平台账户信息-----------------')
+    logger.info('------------查询平台账户信息-----------------',city)
     total_query = select(
             func.sum(T_Bill.amount).label('total_amount'),
             func.sum(T_Bill.tech_income).label('total_tech_income'),
@@ -200,11 +200,10 @@ async def statisticsnew(
     if city:
         total_query = total_query.where(T_Bill.work_city == city)
     # 执行查询
-    logger.info(total_query)
     total_result = session.exec(total_query).first()
     totol_income = total_result.total_amount - total_result.total_tech_income - total_result.total_tax
-    logger.info(f"total_result: {total_result}")
-    logger.info(f"totol_income: {totol_income}")
+    # logger.info(f"total_result: {total_result}")
+    # logger.info(f"totol_income: {totol_income}")
     logger.info('------------查询股东收益（半月）-----------------')
     # 构建查询
     month_query = select(
@@ -218,12 +217,16 @@ async def statisticsnew(
     if city:
         month_query = month_query.where(T_Bill.work_city == city)
     month_total_result = session.exec(month_query).first()
-    month_totol_income = month_total_result.total_amount - month_total_result.total_tech_income - month_total_result.total_tax
-
-    logger.info(f"month_total_result: {month_total_result}")
-    logger.info(f"month_totol_income: {month_totol_income}")
-
-    logger.info('------------查询技师一期收益（周五：0:00～周四23:59:59）-----------------')
+    # month_totol_income = month_total_result.total_amount - month_total_result.total_tech_income - month_total_result.total_tax
+    # 计算总收入，确保即使结果为 None 也返回 0
+    month_total_income = (
+        (month_total_result.total_amount if month_total_result.total_amount is not None else 0) -
+        (month_total_result.total_tech_income if month_total_result.total_tech_income is not None else 0) -
+        (month_total_result.total_tax if month_total_result.total_tax is not None else 0)
+    )
+    # logger.info(f"month_total_result: {month_total_result}")
+    # logger.info(f"month_total_income: {month_total_income}")
+    # logger.info('------------查询技师一期收益（周五：0:00～周四23:59:59）-----------------')
     # 查询本周的总和 
     today = datetime.now()
     # 计算起始和结束日期
@@ -247,19 +250,14 @@ async def statisticsnew(
         week_query = week_query.where(T_Bill.work_city == city)
     # 执行查询
     week_total_result = session.exec(week_query).first()
-    logger.info(f"week_total_result, {week_total_result}")
-
-    logger.info('------------查看账单-----------------')
-    # query = select(T_Bill)
+    # logger.info(f"week_total_result, {week_total_result}")
+    # logger.info('------------查看账单-----------------')
     query = select(T_Bill,T_Order,T_Tech_User.user_nickname.label('actual_user_nickname')).outerjoin(T_Order, T_Bill.order_id == T_Order.order_id).outerjoin(T_Tech_User, T_Order.actual_tech_openid == T_Tech_User.openid)
 
     if city:
         query = query.where(T_Bill.work_city == city)
     query = query.order_by(T_Bill.order_id.desc())
     bill_results = session.exec(query).all()
-    # 将 bill_results 转换为字典列表
-    for bill, actual_tech_openid,actual_user_nickname in bill_results:
-        print(f"Bill: {bill}, Actual Tech OpenID: {actual_tech_openid},{actual_user_nickname}")
     bill_results_list = [
         {
             "bill_id": bill.bill_id,  
@@ -291,10 +289,10 @@ async def statisticsnew(
         "weektotalendtime": end_of_week,  # 本期结束时间
         "weektotalsum": week_total_result.total_amount,  # 本周营业额
         "weeksumtechincome": week_total_result.total_tech_income,  # 本期技师收益
-        "halfmonthsumamount": month_total_result.total_amount,  # 半月总收入
-        "halfmonthsumtechincome": month_total_result.total_tech_income,  # 半月技师收益
-        "halfmonthsumtax": month_total_result.total_tax,  # 半月税收
-        "halfmonthsumincome": month_totol_income,  # 半月净利润
+        "halfmonthsumamount": getattr(month_total_result, 'total_amount', 0) or 0 ,  # 半月总收入
+        "halfmonthsumtechincome": getattr(month_total_result, 'total_tech_income', 0) or 0 ,  # 半月技师收益
+        "halfmonthsumtax": getattr(month_total_result, 'total_tax', 0) or 0 ,  # 半月税收
+        "halfmonthsumincome": month_total_income,  # 半月净利润
         "bill_results": bill_results_list
     }
 
