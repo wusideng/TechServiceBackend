@@ -204,16 +204,19 @@ async def statisticsnew(
     totol_income = total_result.total_amount - total_result.total_tech_income - total_result.total_tax
     # logger.info(f"total_result: {total_result}")
     # logger.info(f"totol_income: {totol_income}")
-    logger.info('------------查询股东收益（半月）-----------------')
+    # logger.info('------------查询股东收益（半月）-----------------')
     # 构建查询
     month_query = select(
         func.sum(T_Bill.amount).label('total_amount'),
         func.sum(T_Bill.tech_income).label('total_tech_income'),
         func.sum(T_Bill.tax).label('total_tax'),
     ).where(
-        T_Bill.payment_status.isnot(None),
-        T_Bill.payment_status != 'completed'  # 注意：使用 <= 确保包括结束日期
+        or_(
+            T_Bill.payment_status.is_(None),  # 检查 payment_status 为 NULL
+            T_Bill.payment_status != 'completed'  # 或者不等于 'completed'
+        )
     )
+    # logger.info(f"month_query: {month_query}")
     if city:
         month_query = month_query.where(T_Bill.work_city == city)
     month_total_result = session.exec(month_query).first()
@@ -257,6 +260,7 @@ async def statisticsnew(
     if city:
         query = query.where(T_Bill.work_city == city)
     query = query.order_by(T_Bill.order_id.desc())
+    logger.info("query:", query)
     bill_results = session.exec(query).all()
     bill_results_list = [
         {
