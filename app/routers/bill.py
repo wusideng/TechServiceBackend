@@ -123,25 +123,35 @@ async def get_tech_benefit_detail(openid: str, session=Depends(get_session)):
 async def read_bill_by_tech_sum(openid: str):
     with Session(engine) as session:
         statement = select(T_Bill).where(T_Bill.openid == openid)
-        results = session.exec(statement).all()
+        results = session.scalars(statement).all()  # 获取所有结果的第一列
+        # 如果需要将结果转换为列表
+        results_list = list(results)
+        # 计算未提现的总收入
         total_product_unpaid_income = sum(
-            bill.tech_income for bill in results if bill.withdrawed is False
+            bill.tech_income for bill in results_list if not bill.withdrawed
         )
         total_product_paid_income = sum(
-            bill.tech_income for bill in results if bill.withdrawed is True
+            bill.tech_income for bill in results_list if bill.withdrawed is True
         )
         total_travel_unpaid = sum(
-            bill.travel_cost for bill in results if bill.withdrawed is False
+            bill.travel_cost for bill in results_list if bill.withdrawed is False
         )
         total_travel_paid = sum(
-            bill.travel_cost for bill in results if bill.withdrawed is True
+            bill.travel_cost for bill in results_list if bill.withdrawed is True
         )
-
+        total_order_count = len(results_list)
+        total_amount_income = sum(
+            bill.amount for bill in results_list 
+        )
+        # conversion_rate_ratio = (total_amount_income-total_amount_income) / total_product_unpaid_income
+        conversion_rate_ratio = 0
         return {
             "total_product_unpaid_income": total_product_unpaid_income,
             "total_product_paid_income": total_product_paid_income,
             "total_travel_unpaid": total_travel_unpaid,
             "total_travel_paid": total_travel_paid,
+            "total_order_count": total_order_count,
+            "conversion_rate_ratio": conversion_rate_ratio
         }
 
 
