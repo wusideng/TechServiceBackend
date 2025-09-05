@@ -106,11 +106,11 @@ async def get_tech_benefit_detail(openid: str, session=Depends(get_session)):
     products_by_main_order = {
         order.order_id: [] for order, _ in orders_bills
     }  # 修正：使用order.order_id
-    for product in all_products:
+    for product_tuple in all_products:
+        product = product_tuple[0]  # 提取 T_Order_Product 对象
         main_order_id = order_to_main[product.order_id]
         products_by_main_order[main_order_id].append(product)
     # 构建最终结果：(order, bill, products) 的列表
-
     results = []
     for order, bill in orders_bills:
         products = products_by_main_order[order.order_id]
