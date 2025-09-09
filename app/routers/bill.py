@@ -1,6 +1,7 @@
 #  账单信息
 from datetime import datetime
 from typing import Optional
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
@@ -17,6 +18,7 @@ from app.model.t_bill import T_Bill
 from app.model.t_order import T_Order
 from app.model.t_tech_user import T_Tech_User
 from app.model.t_order_product import T_Order_Product
+from app.lib.utils.extends import calculate_extends_for_tech
 
 from logger import logger
 
@@ -126,32 +128,23 @@ async def read_bill_by_tech_sum(openid: str):
         results = session.scalars(statement).all()  # 获取所有结果的第一列
         # 如果需要将结果转换为列表
         results_list = list(results)
-        # 计算未提现的总收入
+        # 技师未提现的总收入
         total_product_unpaid_income = sum(
             bill.tech_income for bill in results_list if not bill.withdrawed
         )
+        # 技师已提现的总收入
         total_product_paid_income = sum(
             bill.tech_income for bill in results_list if bill.withdrawed is True
         )
-        total_travel_unpaid = sum(
-            bill.travel_cost for bill in results_list if bill.withdrawed is False
-        )
-        total_travel_paid = sum(
-            bill.travel_cost for bill in results_list if bill.withdrawed is True
-        )
-        total_order_count = len(results_list)
-        total_amount_income = sum(
-            bill.amount for bill in results_list 
-        )
-        # conversion_rate_ratio = (total_amount_income-total_amount_income) / total_product_unpaid_income
-        conversion_rate_ratio = 0
+        extents_result = calculate_extends_for_tech(openid, session)
+        print('extents_result', extents_result)
         return {
             "total_product_unpaid_income": total_product_unpaid_income,
             "total_product_paid_income": total_product_paid_income,
-            "total_travel_unpaid": total_travel_unpaid,
-            "total_travel_paid": total_travel_paid,
-            "total_order_count": total_order_count,
-            "conversion_rate_ratio": conversion_rate_ratio
+            "total_order_count": extents_result["total_order_count"],
+            "extend_rate_ratio": extents_result["extend_rate_ratio"],
+            "actual_total_order_count": extents_result["actual_total_order_count"],
+            "actual_extend_rate_ratio": extents_result["actual_extend_rate_ratio"]
         }
 
 
@@ -196,6 +189,7 @@ balance_adjustment_0814 = 0
 # balance_adjustment_0814 = 2758
 
 @router.get("/city/statistics")
+# @router.get("/city/statistics/{city}")
 async def statisticsnew(
     city: Optional[str] = None,
     session: Session = Depends(get_session)
@@ -301,8 +295,8 @@ async def statisticsnew(
         "totaltax": total_result.total_tax, # 已支付税收
         "weektotalstarttime": start_of_week,  # 本期开始时间
         "weektotalendtime": end_of_week,  # 本期结束时间
-        "weektotalsum": week_total_result.total_amount,  # 本周营业额
-        "weeksumtechincome": week_total_result.total_tech_income,  # 本期技师收益
+        "weektotalsum": week_total_result.total_amount or 0,  # 本周营业额
+        "weeksumtechincome": week_total_result.total_tech_income or 0,  # 本期技师收益
         "halfmonthsumamount": getattr(month_total_result, 'total_amount', 0) or 0 ,  # 半月总收入
         "halfmonthsumtechincome": getattr(month_total_result, 'total_tech_income', 0) or 0 ,  # 半月技师收益
         "halfmonthsumtax": getattr(month_total_result, 'total_tax', 0) or 0 ,  # 半月税收

@@ -394,6 +394,10 @@ async def continue_to_pay(
         # session.commit()
         # 重新生成订单
         order_cost = existing_order.order_cost
+        # 测试数据 Begin
+        logger.info(f"pay_test_openids: {pay_test_openids}")
+        order_cost = 1 if existing_order.client_user_id in pay_test_openids else 0  # 判断并赋值
+        # 测试数据 End
         order_data = generate_order_data(
             product_name=latest_product.product_name,
             order_cost=order_cost,

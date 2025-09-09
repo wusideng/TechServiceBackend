@@ -200,7 +200,7 @@ async def get_order_detail_from_city_manager(
         product_dict["payment_status"] = payment_status
         product_dict["payment_status_code"] = payment_status_code
         products_all.append(product_dict)
-    total_fee_paid_by_customer, tech_benefit = calculate_benefit_for_order(
+    total_fee_paid_by_customer, tech_benefit, tax = calculate_benefit_for_order(
         order, session
     )
     order_info = {
@@ -234,6 +234,7 @@ async def get_order_detail_from_city_manager(
         "order_status_code_client": order.order_status_code_client,
         "order_status_code_tech": order.order_status_code_tech,
         "total_fee_paid_by_customer": total_fee_paid_by_customer,
+        "tax": tax,
         "tech_benefit": tech_benefit,
         "maintenance_fee": maintainence_fee,
         "compensate_coupons": compensate_coupons,
@@ -276,12 +277,13 @@ async def read_order(order_id: str):
             product_dict["payment_status"] = payment_status
             product_dict["payment_status_code"] = payment_status_code
             products_all.append(product_dict)
-        total_fee_paid_by_customer, tech_benefit = calculate_benefit_for_order(
+        total_fee_paid_by_customer, tech_benefit, tax = calculate_benefit_for_order(
             order, session
         )
         order_info = {
             "total_fee_paid_by_customer": total_fee_paid_by_customer,
             "tech_benefit": tech_benefit,
+            "tax": tax,
             "order_id": order.order_id,
             "order_serial": order.order_serial,
             "create_order_time": order.create_order_time,
