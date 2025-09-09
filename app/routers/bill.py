@@ -137,8 +137,7 @@ async def read_bill_by_tech_sum(openid: str):
             bill.tech_income for bill in results_list if bill.withdrawed is True
         )
         extents_result = calculate_extends_for_tech(openid, session)
-        print('extents_result', extents_result)
-        return {
+        results = {
             "total_product_unpaid_income": total_product_unpaid_income,
             "total_product_paid_income": total_product_paid_income,
             "total_order_count": extents_result["total_order_count"],
@@ -146,6 +145,9 @@ async def read_bill_by_tech_sum(openid: str):
             "actual_total_order_count": extents_result["actual_total_order_count"],
             "actual_extend_rate_ratio": extents_result["actual_extend_rate_ratio"]
         }
+        logger.info("技师收入统计：", openid, results)
+
+        return results
 
 
 # 技师服务完成增加一条账单信息
