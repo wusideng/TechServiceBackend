@@ -1,6 +1,7 @@
 # 服务端
 ## 支持 客户端，技师端，管理端，三套前端工程，共享数据库；
-
+test
+ git@github.com:wusideng/TechFrontService.git (push)
 find . -name "._*" -print
 find . -name "._*" -delete
 find . -name "*.pyc" -delete
