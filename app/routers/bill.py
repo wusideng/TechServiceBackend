@@ -1,6 +1,7 @@
 #  账单信息
 from datetime import datetime
 from typing import Optional
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
@@ -17,6 +18,7 @@ from app.model.t_bill import T_Bill
 from app.model.t_order import T_Order
 from app.model.t_tech_user import T_Tech_User
 from app.model.t_order_product import T_Order_Product
+from app.lib.utils.extends import calculate_extends_for_tech
 
 from logger import logger
 
@@ -106,11 +108,11 @@ async def get_tech_benefit_detail(openid: str, session=Depends(get_session)):
     products_by_main_order = {
         order.order_id: [] for order, _ in orders_bills
     }  # 修正：使用order.order_id
-    for product in all_products:
+    for product_tuple in all_products:
+        product = product_tuple[0]  # 提取 T_Order_Product 对象
         main_order_id = order_to_main[product.order_id]
         products_by_main_order[main_order_id].append(product)
     # 构建最终结果：(order, bill, products) 的列表
-
     results = []
     for order, bill in orders_bills:
         products = products_by_main_order[order.order_id]
@@ -123,26 +125,29 @@ async def get_tech_benefit_detail(openid: str, session=Depends(get_session)):
 async def read_bill_by_tech_sum(openid: str):
     with Session(engine) as session:
         statement = select(T_Bill).where(T_Bill.openid == openid)
-        results = session.exec(statement).all()
+        results = session.scalars(statement).all()  # 获取所有结果的第一列
+        # 如果需要将结果转换为列表
+        results_list = list(results)
+        # 技师未提现的总收入
         total_product_unpaid_income = sum(
-            bill.tech_income for bill in results if bill.withdrawed is False
+            bill.tech_income for bill in results_list if not bill.withdrawed
         )
+        # 技师已提现的总收入
         total_product_paid_income = sum(
-            bill.tech_income for bill in results if bill.withdrawed is True
+            bill.tech_income for bill in results_list if bill.withdrawed is True
         )
-        total_travel_unpaid = sum(
-            bill.travel_cost for bill in results if bill.withdrawed is False
-        )
-        total_travel_paid = sum(
-            bill.travel_cost for bill in results if bill.withdrawed is True
-        )
-
-        return {
+        extents_result = calculate_extends_for_tech(openid, session)
+        results = {
             "total_product_unpaid_income": total_product_unpaid_income,
             "total_product_paid_income": total_product_paid_income,
-            "total_travel_unpaid": total_travel_unpaid,
-            "total_travel_paid": total_travel_paid,
+            "total_order_count": extents_result["total_order_count"],
+            "extend_rate_ratio": extents_result["extend_rate_ratio"],
+            "actual_total_order_count": extents_result["actual_total_order_count"],
+            "actual_extend_rate_ratio": extents_result["actual_extend_rate_ratio"]
         }
+        logger.info("技师收入统计：", openid, results)
+
+        return results
 
 
 # 技师服务完成增加一条账单信息
@@ -186,11 +191,12 @@ balance_adjustment_0814 = 0
 # balance_adjustment_0814 = 2758
 
 @router.get("/city/statistics")
+# @router.get("/city/statistics/{city}")
 async def statisticsnew(
     city: Optional[str] = None,
     session: Session = Depends(get_session)
     ):
-    logger.info('------------查询平台账户信息-----------------')
+    logger.info('------------查询平台账户信息-----------------',city)
     total_query = select(
             func.sum(T_Bill.amount).label('total_amount'),
             func.sum(T_Bill.tech_income).label('total_tech_income'),
@@ -200,30 +206,36 @@ async def statisticsnew(
     if city:
         total_query = total_query.where(T_Bill.work_city == city)
     # 执行查询
-    logger.info(total_query)
     total_result = session.exec(total_query).first()
     totol_income = total_result.total_amount - total_result.total_tech_income - total_result.total_tax
-    logger.info(f"total_result: {total_result}")
-    logger.info(f"totol_income: {totol_income}")
-    logger.info('------------查询股东收益（半月）-----------------')
+    # logger.info(f"total_result: {total_result}")
+    # logger.info(f"totol_income: {totol_income}")
+    # logger.info('------------查询股东收益（半月）-----------------')
     # 构建查询
     month_query = select(
         func.sum(T_Bill.amount).label('total_amount'),
         func.sum(T_Bill.tech_income).label('total_tech_income'),
         func.sum(T_Bill.tax).label('total_tax'),
     ).where(
-        T_Bill.payment_status.isnot(None),
-        T_Bill.payment_status != 'completed'  # 注意：使用 <= 确保包括结束日期
+        or_(
+            T_Bill.payment_status.is_(None),  # 检查 payment_status 为 NULL
+            T_Bill.payment_status != 'completed'  # 或者不等于 'completed'
+        )
     )
+    # logger.info(f"month_query: {month_query}")
     if city:
         month_query = month_query.where(T_Bill.work_city == city)
     month_total_result = session.exec(month_query).first()
-    month_totol_income = month_total_result.total_amount - month_total_result.total_tech_income - month_total_result.total_tax
-
-    logger.info(f"month_total_result: {month_total_result}")
-    logger.info(f"month_totol_income: {month_totol_income}")
-
-    logger.info('------------查询技师一期收益（周五：0:00～周四23:59:59）-----------------')
+    # month_totol_income = month_total_result.total_amount - month_total_result.total_tech_income - month_total_result.total_tax
+    # 计算总收入，确保即使结果为 None 也返回 0
+    month_total_income = (
+        (month_total_result.total_amount if month_total_result.total_amount is not None else 0) -
+        (month_total_result.total_tech_income if month_total_result.total_tech_income is not None else 0) -
+        (month_total_result.total_tax if month_total_result.total_tax is not None else 0)
+    )
+    # logger.info(f"month_total_result: {month_total_result}")
+    # logger.info(f"month_total_income: {month_total_income}")
+    # logger.info('------------查询技师一期收益（周五：0:00～周四23:59:59）-----------------')
     # 查询本周的总和 
     today = datetime.now()
     # 计算起始和结束日期
@@ -247,19 +259,15 @@ async def statisticsnew(
         week_query = week_query.where(T_Bill.work_city == city)
     # 执行查询
     week_total_result = session.exec(week_query).first()
-    logger.info(f"week_total_result, {week_total_result}")
-
-    logger.info('------------查看账单-----------------')
-    # query = select(T_Bill)
-    query = select(T_Bill,T_Order.actual_tech_openid,T_Tech_User.user_nickname.label('actual_user_nickname')).outerjoin(T_Order, T_Bill.order_id == T_Order.order_id).outerjoin(T_Tech_User, T_Order.actual_tech_openid == T_Tech_User.openid)
+    # logger.info(f"week_total_result, {week_total_result}")
+    # logger.info('------------查看账单-----------------')
+    query = select(T_Bill,T_Order,T_Tech_User.user_nickname.label('actual_user_nickname')).outerjoin(T_Order, T_Bill.order_id == T_Order.order_id).outerjoin(T_Tech_User, T_Order.actual_tech_openid == T_Tech_User.openid)
 
     if city:
         query = query.where(T_Bill.work_city == city)
     query = query.order_by(T_Bill.order_id.desc())
+    logger.info("query:", query)
     bill_results = session.exec(query).all()
-    # 将 bill_results 转换为字典列表
-    for bill, actual_tech_openid,actual_user_nickname in bill_results:
-        print(f"Bill: {bill}, Actual Tech OpenID: {actual_tech_openid},{actual_user_nickname}")
     bill_results_list = [
         {
             "bill_id": bill.bill_id,  
@@ -277,9 +285,10 @@ async def statisticsnew(
             "withdrawed": bill.withdrawed,  
             "payment_status": bill.payment_status or "",  
             "time_stamp": bill.time_stamp.isoformat(),  
+            "service_time": T_Order.service_time
             # 添加其他需要的属性
         }
-        for bill, actual_tech_openid, actual_user_nickname in bill_results
+        for bill, T_Order, actual_user_nickname in bill_results
     ]
     return {
         "totalsum": total_result.total_amount,   # 总金额
@@ -288,12 +297,12 @@ async def statisticsnew(
         "totaltax": total_result.total_tax, # 已支付税收
         "weektotalstarttime": start_of_week,  # 本期开始时间
         "weektotalendtime": end_of_week,  # 本期结束时间
-        "weektotalsum": week_total_result.total_amount,  # 本周营业额
-        "weeksumtechincome": week_total_result.total_tech_income,  # 本期技师收益
-        "halfmonthsumamount": month_total_result.total_amount,  # 半月总收入
-        "halfmonthsumtechincome": month_total_result.total_tech_income,  # 半月技师收益
-        "halfmonthsumtax": month_total_result.total_tax,  # 半月税收
-        "halfmonthsumincome": month_totol_income,  # 半月净利润
+        "weektotalsum": week_total_result.total_amount or 0,  # 本周营业额
+        "weeksumtechincome": week_total_result.total_tech_income or 0,  # 本期技师收益
+        "halfmonthsumamount": getattr(month_total_result, 'total_amount', 0) or 0 ,  # 半月总收入
+        "halfmonthsumtechincome": getattr(month_total_result, 'total_tech_income', 0) or 0 ,  # 半月技师收益
+        "halfmonthsumtax": getattr(month_total_result, 'total_tax', 0) or 0 ,  # 半月税收
+        "halfmonthsumincome": month_total_income,  # 半月净利润
         "bill_results": bill_results_list
     }
 

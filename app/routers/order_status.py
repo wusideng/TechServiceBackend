@@ -106,7 +106,7 @@ async def create_order_status(
             order.order_status_code_tech = status_type_code
         change_tech_busy_time(order, status_type_code, session)
         if status_type_code == action_status_code_dict["tech"]["service_end"]["code"]:
-            [total_fee_paid_by_customer, tech_benefit] = calculate_benefit_for_order(
+            [total_fee_paid_by_customer, tech_benefit, tax] = calculate_benefit_for_order(
                 order, session
             )
             bill = T_Bill(
@@ -114,6 +114,7 @@ async def create_order_status(
                 order_id=order.order_id,
                 tech_income=tech_benefit,
                 travel_cost=order.travel_cost,
+                tax=tax,
                 openid=order.tech.openid,
                 user_nickname=order.tech.user_nickname,
                 ratio=order.tech.ratio,
