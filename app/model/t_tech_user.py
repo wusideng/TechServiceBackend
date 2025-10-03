@@ -32,6 +32,7 @@ class T_Tech_User(SQLModel, table=True):
     ratio: Optional[int]
     technician_certificate: Optional[str]
     health_certificate: Optional[str]
+    emergency_contact: Optional[str]
     orders: List["T_Order"] = Relationship(
         back_populates="tech",
         sa_relationship_kwargs={"foreign_keys": "[T_Order.tech_user_id]"},
