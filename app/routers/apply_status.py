@@ -92,7 +92,13 @@ async def read_apply_status(apply_type: str):
 async def read_applied_status(apply_type: str):
     with Session(engine) as session:
         statement = (
-            select(T_Apply_Status)
+            select(
+                T_Apply_Status, 
+                T_Tech_User.user_nickname,
+                T_Tech_User.user_city,
+                T_Tech_User.work_phone
+            )
+            .join(T_Tech_User, T_Apply_Status.tech_id == T_Tech_User.openid)
             .where(
                 or_(
                     T_Apply_Status.apply_status == "approve",
@@ -102,7 +108,15 @@ async def read_applied_status(apply_type: str):
             )
             .order_by(T_Apply_Status.updateTime.desc())
         )
-        apply_statuses = session.exec(statement).all()
+        results = session.exec(statement).all()
+        # 将结果转换为字典格式，包含apply_status和额外字段
+        apply_statuses = []
+        for apply_status, user_nickname, user_city, work_phone in results:
+            status_dict = apply_status.dict()
+            status_dict["user_nickname"] = user_nickname
+            status_dict["user_city"] = user_city
+            status_dict["work_phone"] = work_phone
+            apply_statuses.append(status_dict)
         return apply_statuses
 
 
