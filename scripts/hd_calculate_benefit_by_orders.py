@@ -35,11 +35,13 @@ tax_rate = 0.06
 # 提现手续费
 withdraw_fee = 5
 # 技师提成百分比
-tech_benefit_rate = 0.5
+tech_benefit_rate = 0.7
 tech_benefit_rate_add = 0.7
-# 渠道费（平台维护费）
+# 渠道费（平台维护费）(营业税)
 maintenance_fee = 10
-maintenance_fee_add = 0
+maintenance_fee_add = 10
+# 推广费用(重庆洗手液，杭州洗手液 推广法按照10%计算, 没有填写0)
+promotion_fee = 0
 
 
 techs = {}
@@ -84,7 +86,7 @@ def main(order_ids: List[int], actual_travel_fees: List[dict] = None):
                 sum_for_all_techs[tech_name] = [benefit_info]
             else:
                 sum_for_all_techs[tech_name].append(benefit_info)
-            print(f"-------------------------------")
+            print(f"--------------{order.service_city}-----------------")
             # print(f"{order.tech.user_nickname}第{index+1}单")
             print(f"订单编号：{benefit_info['order_id']}")
             print(
@@ -97,7 +99,7 @@ def main(order_ids: List[int], actual_travel_fees: List[dict] = None):
             print(f"订单总价：{benefit_info['order_cost']}")
             # print(f"平台预估车费：{benefit_info['travel_fee']}")
             print(f"实际车费：{benefit_info['actual_travel_fee']}")
-            print(f"渠道费：{benefit_info['maintenance_fee']}")
+            print(f"营业税：{benefit_info['maintenance_fee']}")
             print(f"手续费：{benefit_info['withdraw_fee']}")
             print("\n")
             print(
@@ -106,9 +108,18 @@ def main(order_ids: List[int], actual_travel_fees: List[dict] = None):
             print(
                 f"上缴税收：{benefit_info['order_cost']}*{tax_rate}={benefit_info['total_tax_cost']}"
             )
-            print(
-                f"平台收益：{benefit_info['order_cost']}-{benefit_info['tech_benefit']}-{benefit_info['total_tax_cost']}={benefit_info['platform_benefit']}"
-            )
+            if promotion_fee:
+                promotion_fee_count = (benefit_info['order_cost'] - benefit_info['travel_fee']) * 0.1
+                print(
+                    f"推广费用：{promotion_fee_count}"
+                )
+                print(
+                    f"平台收益：{benefit_info['order_cost']}-{benefit_info['tech_benefit']}-{benefit_info['total_tax_cost']}-{promotion_fee_count}={benefit_info['platform_benefit']}"
+                )
+            else:
+                print(
+                    f"平台收益：{benefit_info['order_cost']}-{benefit_info['tech_benefit']}-{benefit_info['total_tax_cost']}={benefit_info['platform_benefit']}"
+                )
             
         print("\n")
 
@@ -220,7 +231,7 @@ def calculate_benefit(order: T_Order, session: Session):
 
 if __name__ == "__main__":
     print("计算开始")
-    order_ids = [358] 
+    order_ids = [386, 383] 
 
     main(order_ids)
 

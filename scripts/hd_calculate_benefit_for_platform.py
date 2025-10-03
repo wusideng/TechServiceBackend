@@ -41,9 +41,9 @@ withdraw_fee = 5
 # 技师提成百分比
 tech_benefit_rate = 0.5
 tech_benefit_rate_add = 0.7
-# 渠道费（平台维护费）
+# 渠道费（平台维护费）(营业税)
 maintenance_fee = 10
-maintenance_fee_add = 0
+maintenance_fee_add = 10
 
 techs = {}
 # 实际交通费
@@ -113,7 +113,7 @@ def main(start_date, end_date, actual_travel_fees: List[dict] = None):
             print(f"订单总价：{benefit_info['order_cost']}")
             print(f"平台预估车费：{benefit_info['travel_fee']}")
             print(f"实际车费：{benefit_info['actual_travel_fee']}")
-            print(f"渠道费：{benefit_info['maintenance_fee']}")
+            print(f"营业税：{benefit_info['maintenance_fee']}")
             print(f"手续费：{benefit_info['withdraw_fee']}")
             print("\n")
             print(
@@ -223,6 +223,8 @@ def calculate_benefit(order: T_Order, session: Session):
 
 
 if __name__ == "__main__":
-    start_date = "2025-08-01 00:00:00"
-    end_date = "2025-08-15 23:59:00"
+    # start_date = "2025-08-01 00:00:00"
+    # end_date = "2025-08-15 23:59:00"
+    start_date = "2025-09-15 00:00:00"
+    end_date = "2025-9-30 12:00:00"
     main(start_date, end_date)

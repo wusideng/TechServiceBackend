@@ -35,7 +35,7 @@ tax_rate = 0.06
 # 提现手续费
 withdraw_fee = 5
 # 技师提成百分比
-tech_benefit_rate = 0.7
+tech_benefit_rate = 0.5
 # 渠道费（平台维护费）
 maintenance_fee = 18
 
@@ -198,5 +198,5 @@ def calculate_benefit(order: T_Order, session: Session):
 
 
 if __name__ == "__main__":
-    order_ids = [251]
+    order_ids = [387]
     main(order_ids)

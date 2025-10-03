@@ -196,6 +196,6 @@ def calculate_benefit(order: T_Order, session: Session):
 
 
 if __name__ == "__main__":
-    start_date = "2025-06-18 17:00:00"
-    end_date = "2025-07-15 14:00:00"
+    start_date = "2025-08-01 00:00:00"
+    end_date = "2025-08-15 24:00:00"
     main(start_date, end_date)
