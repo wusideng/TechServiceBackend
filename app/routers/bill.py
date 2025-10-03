@@ -190,83 +190,48 @@ withdraw_fee = 5
 balance_adjustment_0814 = 0
 # balance_adjustment_0814 = 2758
 
-@router.get("/city/statistics")
-# @router.get("/city/statistics/{city}")
+# @router.get("/city/statistics")
+@router.get("/city/statistics/{city}")
 async def statisticsnew(
     city: Optional[str] = None,
     session: Session = Depends(get_session)
     ):
-    logger.info('------------查询平台账户信息-----------------',city)
+    logger.info(f"-----------------查询平台总账信息-----------------{city}")
     total_query = select(
             func.sum(T_Bill.amount).label('total_amount'),
             func.sum(T_Bill.tech_income).label('total_tech_income'),
             func.sum(T_Bill.tax).label('total_tax'),
         )
-    # 如果 city 参数存在，添加过滤条件
-    if city:
+    if city is not None and city != "all":
         total_query = total_query.where(T_Bill.work_city == city)
-    # 执行查询
     total_result = session.exec(total_query).first()
     totol_income = total_result.total_amount - total_result.total_tech_income - total_result.total_tax
-    # logger.info(f"total_result: {total_result}")
-    # logger.info(f"totol_income: {totol_income}")
-    # logger.info('------------查询股东收益（半月）-----------------')
-    # 构建查询
+    logger.info(f"营业额：{total_result.total_amount}, 平台收益: {totol_income}， 技师收益：{total_result.total_tech_income}, 税收：{total_result.total_tax}")
+    logger.info('------------查询股东收益（半月）-----------------')
     month_query = select(
         func.sum(T_Bill.amount).label('total_amount'),
         func.sum(T_Bill.tech_income).label('total_tech_income'),
         func.sum(T_Bill.tax).label('total_tax'),
     ).where(
         or_(
-            T_Bill.payment_status.is_(None),  # 检查 payment_status 为 NULL
-            T_Bill.payment_status != 'completed'  # 或者不等于 'completed'
+            T_Bill.payment_status.is_(None), 
+            T_Bill.payment_status != 'completed' 
         )
     )
-    # logger.info(f"month_query: {month_query}")
-    if city:
+    if city is not None and city != "all":
         month_query = month_query.where(T_Bill.work_city == city)
     month_total_result = session.exec(month_query).first()
-    # month_totol_income = month_total_result.total_amount - month_total_result.total_tech_income - month_total_result.total_tax
     # 计算总收入，确保即使结果为 None 也返回 0
     month_total_income = (
         (month_total_result.total_amount if month_total_result.total_amount is not None else 0) -
         (month_total_result.total_tech_income if month_total_result.total_tech_income is not None else 0) -
         (month_total_result.total_tax if month_total_result.total_tax is not None else 0)
     )
-    # logger.info(f"month_total_result: {month_total_result}")
-    # logger.info(f"month_total_income: {month_total_income}")
-    # logger.info('------------查询技师一期收益（周五：0:00～周四23:59:59）-----------------')
-    # 查询本周的总和 
-    today = datetime.now()
-    # 计算起始和结束日期
-    if today.weekday() < 5:  # 如果今天是周一到周四
-        start_of_week = today - timedelta(days=(today.weekday() + 2))  # 上周五
-    else:  # 如果今天是周五到周日
-        start_of_week = today - timedelta(days=(today.weekday() - 4))  # 本周五
-    # 设置开始和结束时间为0:00
-    start_of_week = start_of_week.replace(hour=0, minute=0, second=0, microsecond=0)
-    end_of_week = start_of_week + timedelta(days=7)  # 下周五0:00
-    week_query =  select(
-            func.sum(T_Bill.amount).label('total_amount'),
-            func.sum(T_Bill.tech_income).label('total_tech_income'),
-        ).where(
-            T_Bill.time_stamp >= start_of_week,
-            T_Bill.time_stamp < end_of_week
-        )
-        
-    # 如果 city 参数存在，添加过滤条件
-    if city:
-        week_query = week_query.where(T_Bill.work_city == city)
-    # 执行查询
-    week_total_result = session.exec(week_query).first()
-    # logger.info(f"week_total_result, {week_total_result}")
-    # logger.info('------------查看账单-----------------')
+    logger.info(f"营业额: {month_total_income}，平台收益：{month_total_result.total_amount or 0}，技师收益：{month_total_result.total_tech_income or 0}，税收：{month_total_result.total_tax or 0}")
     query = select(T_Bill,T_Order,T_Tech_User.user_nickname.label('actual_user_nickname')).outerjoin(T_Order, T_Bill.order_id == T_Order.order_id).outerjoin(T_Tech_User, T_Order.actual_tech_openid == T_Tech_User.openid)
-
-    if city:
+    if city is not None and city != "all":
         query = query.where(T_Bill.work_city == city)
-    query = query.order_by(T_Bill.order_id.desc())
-    logger.info("query:", query)
+    query = query.order_by(T_Bill.order_id.desc()).limit(20)
     bill_results = session.exec(query).all()
     bill_results_list = [
         {
@@ -285,7 +250,9 @@ async def statisticsnew(
             "withdrawed": bill.withdrawed,  
             "payment_status": bill.payment_status or "",  
             "time_stamp": bill.time_stamp.isoformat(),  
-            "service_time": T_Order.service_time
+            "service_time": T_Order.service_time,
+            "t_order_order_id": T_Order.order_id,
+            "parent_order_id": T_Order.parent_order_id,
             # 添加其他需要的属性
         }
         for bill, T_Order, actual_user_nickname in bill_results
@@ -295,10 +262,6 @@ async def statisticsnew(
         "totolincome": totol_income, # 已支付股东
         "totalpaid": total_result.total_tech_income, # 已支付技师
         "totaltax": total_result.total_tax, # 已支付税收
-        "weektotalstarttime": start_of_week,  # 本期开始时间
-        "weektotalendtime": end_of_week,  # 本期结束时间
-        "weektotalsum": week_total_result.total_amount or 0,  # 本周营业额
-        "weeksumtechincome": week_total_result.total_tech_income or 0,  # 本期技师收益
         "halfmonthsumamount": getattr(month_total_result, 'total_amount', 0) or 0 ,  # 半月总收入
         "halfmonthsumtechincome": getattr(month_total_result, 'total_tech_income', 0) or 0 ,  # 半月技师收益
         "halfmonthsumtax": getattr(month_total_result, 'total_tax', 0) or 0 ,  # 半月税收
