@@ -228,35 +228,86 @@ async def statisticsnew(
         (month_total_result.total_tax if month_total_result.total_tax is not None else 0)
     )
     logger.info(f"营业额: {month_total_income}，平台收益：{month_total_result.total_amount or 0}，技师收益：{month_total_result.total_tech_income or 0}，税收：{month_total_result.total_tax or 0}")
-    query = select(T_Bill,T_Order,T_Tech_User.user_nickname.label('actual_user_nickname')).outerjoin(T_Order, T_Bill.order_id == T_Order.order_id).outerjoin(T_Tech_User, T_Order.actual_tech_openid == T_Tech_User.openid)
-    if city is not None and city != "all":
-        query = query.where(T_Bill.work_city == city)
-    query = query.order_by(T_Bill.order_id.desc()).limit(20)
-    bill_results = session.exec(query).all()
-    bill_results_list = [
-        {
-            "bill_id": bill.bill_id,  
-            "amount": bill.amount,  
-            "tech_income": bill.tech_income,  
-            "travel_cost": bill.travel_cost,  
-            "tax": bill.tax,  
-            "sumincome": bill.amount - bill.tech_income - bill.tax,
-            "openid": bill.openid,  
-            "user_nickname": bill.user_nickname,  
-            "actual_user_nickname":actual_user_nickname,
-            "ratio": bill.ratio,  
-            "order_id": bill.order_id,  
-            "work_city": bill.work_city,  
-            "withdrawed": bill.withdrawed,  
-            "payment_status": bill.payment_status or "",  
-            "time_stamp": bill.time_stamp.isoformat(),  
-            "service_time": T_Order.service_time,
-            "t_order_order_id": T_Order.order_id,
-            "parent_order_id": T_Order.parent_order_id,
-            # 添加其他需要的属性
-        }
-        for bill, T_Order, actual_user_nickname in bill_results
-    ]
+    def get_bill_results_list(session: Session, city: Optional[str] = None):
+        # 查询主账单和主订单
+        main_query = select(
+            T_Bill,
+            T_Order,
+            T_Tech_User.user_nickname.label('actual_user_nickname')
+        ).outerjoin(
+            T_Order, T_Bill.order_id == T_Order.order_id
+        ).outerjoin(
+            T_Tech_User, T_Order.actual_tech_openid == T_Tech_User.openid
+        )
+        
+        if city is not None and city != "all":
+            main_query = main_query.where(T_Bill.work_city == city)
+            
+        main_query = main_query.order_by(T_Bill.order_id.desc()).limit(20)
+        main_results = session.exec(main_query).all()
+        
+        # 获取所有相关order_id用于查询加钟订单
+        order_ids = [bill.order_id for bill, _, _ in main_results]
+        
+        # 查询加钟订单
+        extend_query = select(T_Order).where(
+            T_Order.parent_order_id.in_(order_ids)
+        )
+        logger.info(f"查询加钟订单： {order_ids}")
+        logger.info(f"查询加钟订单： {extend_query}")
+        extend_orders = session.exec(extend_query).all()
+        logger.info(f"查询加钟订单({extend_orders.__len__()})：")
+        # 构建order_id到加钟订单的映射
+        extend_orders_map = {}
+        for order in extend_orders:
+            if order[0].parent_order_id not in extend_orders_map:
+                extend_orders_map[order[0].parent_order_id] = []
+            extend_orders_map[order[0].parent_order_id].append(order[0])
+        
+        # 构建最终结果
+        bill_results_list = []
+        for bill, main_order, actual_user_nickname in main_results:
+            extend_orders = extend_orders_map.get(bill.order_id, [])
+            # print(extend_orders.__len__())
+            # print(extend_orders)
+            bill_results_list.append({
+                "bill_id": bill.bill_id,  
+                "amount": bill.amount,  
+                "tech_income": bill.tech_income,  
+                "travel_cost": bill.travel_cost,  
+                "tax": bill.tax,  
+                "sumincome": bill.amount - bill.tech_income - bill.tax,
+                "openid": bill.openid,  
+                "user_nickname": bill.user_nickname,  
+                "actual_user_nickname": actual_user_nickname,
+                "ratio": bill.ratio,  
+                "order_id": bill.order_id,  
+                "work_city": bill.work_city,  
+                "withdrawed": bill.withdrawed,  
+                "payment_status": bill.payment_status or "",  
+                "time_stamp": bill.time_stamp.isoformat(),  
+                "main_order": {
+                     **{**vars(main_order), **{"order_products": main_order.order_products}},  # 合并 main_order 和 main_order.order_products
+                },
+                "extend_orders": [
+                    {
+                        "order_id": e.order_id,
+                        "parent_order_id": e.parent_order_id,
+                        "actual_fee_received": e.actual_fee_received,
+                        "create_order_time": e.create_order_time,
+                        "service_time": e.service_time,
+                        "travel_cost": e.travel_cost,
+                        "travel_distance": e.travel_distance,
+                        "coupon_value": e.coupon_value,
+                        "coupon_id": e.coupon_id,
+                        "order_products": e.order_products,
+                    } for e in extend_orders
+                ]
+            })
+            
+        return bill_results_list
+    
+    bill_results_list = get_bill_results_list(session, city)
     return {
         "totalsum": total_result.total_amount,   # 总金额
         "totolincome": totol_income, # 已支付股东
