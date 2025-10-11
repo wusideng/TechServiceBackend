@@ -89,8 +89,8 @@ async def bind_phone(fromNumber: str, toNumber: str):
     conn.request("POST", final_uri, json_body, headers)
     response = conn.getresponse()
     response_str = response.read()
-    logger.info("Response Status Code:", response.status)
-    logger.info("Response Body:", response_str.decode("utf-8"))
+    logger.info(f"Response Status Code: {response.status}")
+    logger.info(f"Response Body: {response_str.decode('utf-8')}")
     conn.close()
     return response_str
 
@@ -129,8 +129,8 @@ async def unbind_phone(fromNumber: str, toNumber: str):
     conn.request("POST", final_uri, json_body, headers)
     response = conn.getresponse()
     response_str = response.read()
-    logger.info("Response Status Code:", response.status)
-    logger.info("Response Body:", response_str.decode("utf-8"))
+    logger.info(f"Response Status Code:{response.status}" )
+    logger.info(f"Response Body:{response_str.decode('utf-8')}", )
     conn.close()
     return response_str
 
@@ -178,3 +178,25 @@ async def unbind_phone_by_order(order_id: str):
         res = await unbind_phone(tech_user.work_phone, client_user.user_phone)
         return {"from": tech_user.work_phone, "to": client_user.user_phone, "res": res}
     return
+
+
+# 管理后台派单，绑定真实技师与顾客的手机号码.
+# 1、解绑顾客手机号码，与下单技师的手机号码。
+# 2、如果之前已经绑定过真实接单技师，则解绑顾客手机号码，与真实技师的手机号码。
+# 3、绑定顾客手机号码，与真实技师的手机号码。
+# client_user_id: 顾客openid
+# tech_user_id: 被替换技师openid
+# actual_tech_user_id: 实际接单技师openid
+async def bind_actual_tech_phone(client_openid: str, tech_openid: str, actual_tech_openid: str):
+    with Session(engine) as session:
+        client_user = select(T_Client_User).where(T_Client_User.openid == client_openid)
+        tech_user = select(T_Tech_User).where(T_Tech_User.openid == tech_openid)
+        actual_tech_user = select(T_Tech_User).where(T_Tech_User.openid == actual_tech_openid)
+        client_user = session.exec(client_user).first()
+        tech_user = session.exec(tech_user).first()
+        actual_tech_user = session.exec(actual_tech_user).first()
+        tech_unbind = await unbind_phone(tech_user.work_phone, client_user.user_phone)
+        logger.info(f"unbind: 技师 {tech_user.user_nickname} {tech_user.work_phone}, 顾客 {client_user.user_phone}: {tech_unbind}")
+        actual_bind = await bind_phone(actual_tech_user.work_phone, client_user.user_phone)
+        logger.info(f"bind: 技师 {actual_tech_user.user_nickname} {actual_tech_user.work_phone}, 顾客 {client_user.user_phone}: {actual_bind}")
+        return {"actual_bind": actual_bind, "tech_unbind":tech_unbind}

@@ -584,7 +584,7 @@ async def update_tech_user_workphoto(
     session.refresh(existing_tech)
     return existing_tech
 
-
+# 管理端 上传生活照
 @router.post("/lifephoto")
 async def update_tech_user_photo(
     openid: str,
@@ -615,6 +615,37 @@ async def update_tech_user_photo(
             session.refresh(existing_tech)
             return existing_tech
 
+# 管理端 上传资质证书
+@router.post("/modifyCertificate")
+async def update_tech_user_photo(
+    openid: str,
+    fileBusiness: UploadFile = File(None),
+    fileTechnician: UploadFile = File(None),
+    fileHealth: UploadFile = File(None),
+):
+    with Session(engine) as session:
+        statement = select(T_Tech_User).where(T_Tech_User.openid == openid)
+        result = session.exec(statement)
+        if not result.first():
+            raise HTTPException(status_code=400, detail="the techUser not exists.")
+        else:
+            # 保存上传的照片
+            statement = select(T_Tech_User).where(T_Tech_User.openid == openid)
+            existing_tech = session.exec(statement).first()
+            if fileBusiness:
+                cdn_path1 = await upload_photo_to_cdn(fileBusiness, openid)
+                existing_tech.business_license = cdn_path1
+            if fileTechnician:
+                cdn_path2 = await upload_photo_to_cdn(fileTechnician, openid)
+                existing_tech.technician_certificate = cdn_path2
+            if fileHealth:
+                cdn_path3 = await upload_photo_to_cdn(fileHealth, openid)
+                existing_tech.health_certificate = cdn_path3
+            session.merge(existing_tech)
+            session.commit()
+            session.refresh(existing_tech)
+            logger.info(openid,"资质证书上传成功")
+            return existing_tech
 
 @router.put("/")
 async def update_tech_user(user_id: int, newUser: T_Tech_User):
@@ -653,6 +684,14 @@ async def update_tech_user(
     user.work_phone = newUser.work_phone
     user.user_city = newUser.user_city
     # 只在 newUser 中提供了值的情况下更新以下字段
+    if newUser.bank_card_id is not None:
+        user.bank_card_id = newUser.bank_card_id
+    if newUser.bank_card_type is not None:
+        user.bank_card_id = newUser.bank_card_id
+    if newUser.user_desc:
+        user.user_desc = newUser.user_desc
+    if newUser.emergency_contact:
+        user.emergency_contact = newUser.emergency_contact
     if newUser.photo_work is not None:
         user.photo_work = newUser.photo_work
     if newUser.photo_life_1 is not None:
@@ -921,6 +960,9 @@ def get_tech_response_from_main_query(lon, lat, results):
         products = [
             tech_user_product.product for tech_user_product in user.tech_user_products
         ]
+        # 新技师判断，创建日期 90天 内都是新技师
+        is_new_tech = user.user_createtime > datetime.now() - timedelta(days=90)
+
         # if distance > 20:
         #     worktime_date = None
         #     worktime_start = None
@@ -956,7 +998,7 @@ def get_tech_response_from_main_query(lon, lat, results):
             "follow_count": follow_count,
             "products": products,
             "is_followed": is_followed,
-            "is_new_tech": True,
+            "is_new_tech": is_new_tech,
         }
         response.append(user_data)
 

@@ -1,5 +1,6 @@
 #  订单信息
 
+import asyncio
 from fastapi import APIRouter, Depends
 from sqlalchemy import and_, desc, func, or_
 from sqlalchemy.orm import joinedload, noload, selectinload
@@ -27,6 +28,7 @@ from app.model.q_OrderCreate import OrderCreate
 from app.core.config import action_status_code_dict
 from app.model.t_tech_user import T_Tech_User
 from app.model.t_wechat_event import T_Wechat_Events
+from app.routers.virtual_tel_yxlk import bind_actual_tech_phone
 from logger import logger
 
 
@@ -538,17 +540,26 @@ async def read_order(order_id: str):
 
 
 @router.post("/tag_replace_tech")
-def tag_replace_tech(
+async def tag_replace_tech(
     request: TagOrderReplaceTech, session: Session = Depends(get_session)
 ):
     order_id = request.order_id
     actual_tech_openid = request.actual_tech_openid
     statement = select(T_Order).where(T_Order.order_id == order_id)
     order = session.exec(statement).first()
+    # 未更新数据时进行数据绑定
+    # 解绑顾客手机号码，与下单技师的手机号码
+    logger.info(f"绑定真实技师，订单号 order {order.order_id}")
+    if order.actual_tech_openid:
+        asyncio.create_task(bind_actual_tech_phone(order.client_user_id, order.actual_tech_openid, actual_tech_openid))
+    # 解绑顾客手机号码，与已经绑定过真实接单技师手机号码
+    else:
+        asyncio.create_task(bind_actual_tech_phone(order.client_user_id, order.tech_user_id, actual_tech_openid))
     order.actual_tech_openid = actual_tech_openid
     session.commit()
     actual_tech: T_Tech_User = order.actual_tech
     actual_tech = actual_tech.model_dump()
+
     return actual_tech
 
 
